@@ -1,4 +1,4 @@
-"""MCP server for ARRL Logbook of The World — QSO query, QSL status, DXCC credit"""
+"""lotw-mcp: MCP server for ARRL Logbook of The World."""
 
 from __future__ import annotations
 
