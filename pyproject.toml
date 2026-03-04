@@ -1,0 +1,43 @@
+[project]
+name = "lotw-mcp"
+version = "0.1.0"
+description = "MCP server for ARRL Logbook of The World — QSO query, QSL status, DXCC credit"
+readme = "README.md"
+license = {text = "GPL-3.0-or-later"}
+authors = [{name = "Greg Beam, KI7MT"}]
+requires-python = ">=3.10"
+dependencies = [
+    "adif-mcp>=0.6.2",
+    "fastmcp>=3.0",
+]
+keywords = [
+    "amateur-radio", "ham-radio", "lotw", "logbook-of-the-world", "arrl",
+    "mcp", "model-context-protocol", "dxcc", "qsl",
+]
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Developers",
+    "Topic :: Communications :: Ham Radio",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://qso-graph.io/"
+Repository = "https://github.com/qso-graph/lotw-mcp"
+Issues = "https://github.com/qso-graph/lotw-mcp/issues"
+
+[project.scripts]
+lotw-mcp = "lotw_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lotw_mcp"]
