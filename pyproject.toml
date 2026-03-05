@@ -1,6 +1,6 @@
 [project]
 name = "lotw-mcp"
-version = "0.1.2"
+version = "0.2.0"
 description = "MCP server for ARRL Logbook of The World — QSO query, QSL status, DXCC credit"
 readme = "README.md"
 license = {text = "GPL-3.0-or-later"}

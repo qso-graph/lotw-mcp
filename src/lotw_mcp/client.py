@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import os
 import re
-import threading
-import time
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -13,7 +11,7 @@ from typing import Any
 
 from adif_mcp.credentials import get_creds
 
-from .adif_parser import is_adif_response, is_error_response, parse_adif
+from .adif_parser import is_error_response, parse_adif
 
 _BASE = "https://lotw.arrl.org/lotwuser/lotwreport.adi"
 
@@ -99,6 +97,55 @@ def _extract_error(html: str) -> str:
     if m:
         return m.group(1).strip()
     return "LoTW returned an error page (no ADIF data)"
+
+
+def download_adif(
+    persona: str,
+    qsl_only: bool = False,
+    since: str | None = None,
+    band: str | None = None,
+    mode: str | None = None,
+) -> dict[str, Any]:
+    """Download LoTW log as raw ADIF text.
+
+    Omit 'since' for full history (uses 1970-01-01).
+    Set qsl_only=True for confirmed QSLs only.
+    Returns dict with 'adif' (raw text) and 'record_count'.
+    """
+    if _is_mock():
+        text = _MOCK_CONFIRMATIONS if qsl_only else _MOCK_QSOS
+        record_count = text.upper().count("<EOR>")
+        return {"adif": text, "record_count": record_count}
+
+    creds = get_creds(persona, "lotw")
+    if creds is None or not creds.username or not creds.password:
+        return {"error": f"No LoTW credentials for persona '{persona}'."}
+
+    params: dict[str, str] = {
+        "login": creds.username,
+        "password": creds.password,
+        "qso_query": "1",
+        "qso_withown": "yes",
+    }
+    if qsl_only:
+        params["qso_qsl"] = "yes"
+        params["qso_qslsince"] = since or "1970-01-01"
+        params["qso_qsldetail"] = "yes"
+    else:
+        params["qso_qsl"] = "no"
+        params["qso_qsorxsince"] = since or "1970-01-01"
+    if band:
+        params["qso_band"] = band.upper()
+    if mode:
+        params["qso_mode"] = mode.upper()
+
+    text = _get(_BASE, params)
+
+    if is_error_response(text):
+        return {"error": _extract_error(text)}
+
+    record_count = text.upper().count("<EOR>")
+    return {"adif": text, "record_count": record_count}
 
 
 def query_confirmations(

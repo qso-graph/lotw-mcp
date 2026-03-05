@@ -8,7 +8,7 @@ from typing import Any
 from fastmcp import FastMCP
 
 from . import __version__
-from .client import query_confirmations, query_dxcc_credits, query_qsos
+from .client import download_adif, query_confirmations, query_dxcc_credits, query_qsos
 from .user_activity import check_user
 
 mcp = FastMCP(
@@ -100,6 +100,36 @@ def lotw_dxcc_credits(
     """
     try:
         return query_dxcc_credits(persona, entity)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool()
+def lotw_download(
+    persona: str,
+    qsl_only: bool = False,
+    since: str | None = None,
+    band: str | None = None,
+    mode: str | None = None,
+) -> dict[str, Any]:
+    """Download your complete LoTW log as raw ADIF text.
+
+    Returns the .adi file content — save to disk for import into your logger.
+    Set qsl_only=True for confirmed QSLs only. Omit 'since' for full history.
+    Warning: large logs may take 30-60 seconds (LoTW is slow).
+
+    Args:
+        persona: Persona name configured in adif-mcp.
+        qsl_only: Only return confirmed QSLs (default: all uploaded QSOs).
+        since: Only records since this date (YYYY-MM-DD). Omit for full history.
+        band: Filter by band (e.g., '20M').
+        mode: Filter by mode (e.g., 'FT8').
+
+    Returns:
+        Raw ADIF text and record count.
+    """
+    try:
+        return download_adif(persona, qsl_only=qsl_only, since=since, band=band, mode=mode)
     except Exception as e:
         return {"error": str(e)}
 
