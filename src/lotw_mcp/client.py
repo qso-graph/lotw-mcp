@@ -57,13 +57,20 @@ def _default_since() -> str:
 
 
 def _get(url: str, params: dict[str, str], timeout: float = 120.0) -> str:
-    """HTTP GET, return response text."""
+    """HTTP GET, return response text.
+
+    Catches all urllib exceptions to prevent credential-bearing URLs
+    from leaking through error messages (LoTW puts passwords in query params).
+    """
     qs = urllib.parse.urlencode(params)
     full_url = f"{url}?{qs}"
     req = urllib.request.Request(full_url, method="GET")
     req.add_header("User-Agent", "lotw-mcp/0.1.0")
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return resp.read().decode("utf-8", errors="replace")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.read().decode("utf-8", errors="replace")
+    except Exception:
+        raise RuntimeError("LoTW request failed — check network and credentials")
 
 
 def _record_to_dict(rec: dict[str, str]) -> dict[str, Any]:
