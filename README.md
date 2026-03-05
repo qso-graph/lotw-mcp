@@ -1,3 +1,4 @@
+<!-- mcp-name: io.github.qso-graph/lotw-mcp -->
 # lotw-mcp
 
 MCP server for [ARRL Logbook of The World](https://lotw.arrl.org/) (LoTW) — query confirmations, uploaded QSOs, DXCC credits, and user activity through any MCP-compatible AI assistant.
