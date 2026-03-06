@@ -7,6 +7,8 @@ from typing import Any
 
 from fastmcp import FastMCP
 
+from adif_mcp.identity import PersonaManager
+
 from . import __version__
 from .client import download_adif, query_confirmations, query_dxcc_credits, query_qsos
 from .user_activity import check_user
@@ -19,6 +21,10 @@ mcp = FastMCP(
         "query confirmations, QSOs, DXCC credits, and user activity"
     ),
 )
+
+
+def _pm() -> PersonaManager:
+    return PersonaManager()
 
 
 # ---------------------------------------------------------------------------
@@ -51,7 +57,7 @@ def lotw_confirmations(
         Total count and list of confirmed QSO records.
     """
     try:
-        return query_confirmations(persona, since, band, mode, callsign, dxcc, detail)
+        return query_confirmations(_pm(), persona, since, band, mode, callsign, dxcc, detail)
     except Exception as e:
         return {"error": str(e)}
 
@@ -79,7 +85,7 @@ def lotw_qsos(
         Total count and list of QSO records.
     """
     try:
-        return query_qsos(persona, since, band, mode, start_date, end_date)
+        return query_qsos(_pm(), persona, since, band, mode, start_date, end_date)
     except Exception as e:
         return {"error": str(e)}
 
@@ -99,7 +105,7 @@ def lotw_dxcc_credits(
         Total credits and list of credited QSOs with award details.
     """
     try:
-        return query_dxcc_credits(persona, entity)
+        return query_dxcc_credits(_pm(), persona, entity)
     except Exception as e:
         return {"error": str(e)}
 
@@ -129,7 +135,7 @@ def lotw_download(
         Raw ADIF text and record count.
     """
     try:
-        return download_adif(persona, qsl_only=qsl_only, since=since, band=band, mode=mode)
+        return download_adif(_pm(), persona, qsl_only=qsl_only, since=since, band=band, mode=mode)
     except Exception as e:
         return {"error": str(e)}
 

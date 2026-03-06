@@ -9,7 +9,7 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from adif_mcp.credentials import get_creds
+from adif_mcp.identity import PersonaManager
 
 from .adif_parser import is_error_response, parse_adif
 
@@ -100,6 +100,7 @@ def _extract_error(html: str) -> str:
 
 
 def download_adif(
+    pm: PersonaManager,
     persona: str,
     qsl_only: bool = False,
     since: str | None = None,
@@ -117,13 +118,11 @@ def download_adif(
         record_count = text.upper().count("<EOR>")
         return {"adif": text, "record_count": record_count}
 
-    creds = get_creds(persona, "lotw")
-    if creds is None or not creds.username or not creds.password:
-        return {"error": f"No LoTW credentials for persona '{persona}'."}
+    username, password = pm.require(persona, "lotw")
 
     params: dict[str, str] = {
-        "login": creds.username,
-        "password": creds.password,
+        "login": username,
+        "password": password,
         "qso_query": "1",
         "qso_withown": "yes",
     }
@@ -149,6 +148,7 @@ def download_adif(
 
 
 def query_confirmations(
+    pm: PersonaManager,
     persona: str,
     since: str | None = None,
     band: str | None = None,
@@ -173,13 +173,11 @@ def query_confirmations(
             "records": results,
         }
 
-    creds = get_creds(persona, "lotw")
-    if creds is None or not creds.username or not creds.password:
-        return {"error": f"No LoTW credentials for persona '{persona}'. Set up with: adif-mcp creds set --persona {persona} --provider lotw --username <call> --password <pass>"}
+    username, password = pm.require(persona, "lotw")
 
     params: dict[str, str] = {
-        "login": creds.username,
-        "password": creds.password,
+        "login": username,
+        "password": password,
         "qso_query": "1",
         "qso_qsl": "yes",
         "qso_qslsince": since or _default_since(),
@@ -210,6 +208,7 @@ def query_confirmations(
 
 
 def query_qsos(
+    pm: PersonaManager,
     persona: str,
     since: str | None = None,
     band: str | None = None,
@@ -231,13 +230,11 @@ def query_qsos(
             "records": results,
         }
 
-    creds = get_creds(persona, "lotw")
-    if creds is None or not creds.username or not creds.password:
-        return {"error": f"No LoTW credentials for persona '{persona}'."}
+    username, password = pm.require(persona, "lotw")
 
     params: dict[str, str] = {
-        "login": creds.username,
-        "password": creds.password,
+        "login": username,
+        "password": password,
         "qso_query": "1",
         "qso_qsl": "no",
         "qso_qsorxsince": since or _default_since(),
@@ -266,6 +263,7 @@ def query_qsos(
 
 
 def query_dxcc_credits(
+    pm: PersonaManager,
     persona: str,
     entity: int | None = None,
 ) -> dict[str, Any]:
@@ -277,15 +275,13 @@ def query_dxcc_credits(
             "credits": [_record_to_dict(r) for r in records],
         }
 
-    creds = get_creds(persona, "lotw")
-    if creds is None or not creds.username or not creds.password:
-        return {"error": f"No LoTW credentials for persona '{persona}'."}
+    username, password = pm.require(persona, "lotw")
 
     # DXCC credits use a different endpoint
     url = "https://lotw.arrl.org/lotwuser/lotwreport.adi"
     params: dict[str, str] = {
-        "login": creds.username,
-        "password": creds.password,
+        "login": username,
+        "password": password,
         "qso_query": "1",
         "qso_qsl": "yes",
         "qso_qslsince": "1900-01-01",  # all time
