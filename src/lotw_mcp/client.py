@@ -9,7 +9,7 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from adif_mcp.identity import PersonaManager
+from qso_graph_auth.identity import PersonaManager
 
 from .adif_parser import is_error_response, parse_adif
 

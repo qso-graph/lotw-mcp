@@ -7,7 +7,7 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from adif_mcp.identity import PersonaManager
+from qso_graph_auth.identity import PersonaManager
 
 from . import __version__
 from .client import download_adif, query_confirmations, query_dxcc_credits, query_qsos
