@@ -24,14 +24,14 @@ pip install lotw-mcp
 
 ### 1. Set up credentials
 
-lotw-mcp uses adif-mcp personas for credential management:
+lotw-mcp uses qso-graph-auth personas for credential management:
 
 ```bash
-pip install adif-mcp
+pip install qso-graph-auth
 
-adif-mcp persona create ki7mt --callsign KI7MT
-adif-mcp persona provider ki7mt lotw --username KI7MT
-adif-mcp persona secret ki7mt lotw
+qso-auth persona create ki7mt --callsign KI7MT
+qso-auth persona provider ki7mt lotw --username KI7MT
+qso-auth persona secret ki7mt lotw
 ```
 
 **Note**: The LoTW `login` is usually your callsign but not always. Pre-Sept 2019 accounts may require lowercase passwords. Avoid special characters in passwords.
