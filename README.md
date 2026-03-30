@@ -18,6 +18,7 @@ pip install lotw-mcp
 | `lotw_confirmations` | Yes | Query confirmed QSLs with band/mode/call/date filters |
 | `lotw_qsos` | Yes | Query all uploaded QSOs (confirmed and unconfirmed) |
 | `lotw_dxcc_credits` | Yes | DXCC award credits from LoTW confirmations |
+| `lotw_download` | Yes | Download QSOs as ADIF file |
 | `lotw_user_activity` | No | Check if a callsign uses LoTW and when they last uploaded |
 
 ## Quick Start
