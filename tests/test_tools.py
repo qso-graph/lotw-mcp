@@ -255,3 +255,48 @@ class TestLoadIndex:
         idx1 = _load_index()
         idx2 = _load_index()
         assert idx1 is idx2
+
+
+# ---------------------------------------------------------------------------
+# LOTW-L2-043..047: get_version_info — fleet identity attestation
+# ---------------------------------------------------------------------------
+
+
+class TestGetVersionInfo:
+    """Tracks IONIS-AI/ionis-devel#49 — fleet get_version_info convention."""
+
+    def test_returns_service_name(self):
+        """LOTW-L2-043: payload includes service_name = 'lotw-mcp'."""
+        from lotw_mcp.server import _version_info_payload
+
+        assert _version_info_payload()["service_name"] == "lotw-mcp"
+
+    def test_returns_service_version(self):
+        """LOTW-L2-044: service_version matches package __version__."""
+        from lotw_mcp import __version__
+        from lotw_mcp.server import _version_info_payload
+
+        assert _version_info_payload()["service_version"] == __version__
+
+    def test_returns_spec_version(self):
+        """LOTW-L2-045: spec_version pins the LoTW ARRL schema."""
+        from lotw_mcp.server import _version_info_payload
+
+        assert _version_info_payload()["spec_version"] == "lotw-arrl-v1"
+
+    def test_payload_keys_are_required_set(self):
+        """LOTW-L2-046: payload has the required keys (no extras yet)."""
+        from lotw_mcp.server import _version_info_payload
+
+        result = _version_info_payload()
+        required = {"service_name", "service_version", "spec_version"}
+        assert required.issubset(set(result.keys()))
+
+    def test_all_values_are_strings(self):
+        """LOTW-L2-047: all returned values are strings (JSON-safe envelope)."""
+        from lotw_mcp.server import _version_info_payload
+
+        result = _version_info_payload()
+        for k in ("service_name", "service_version", "spec_version"):
+            assert isinstance(result[k], str), f"{k} should be str, got {type(result[k])}"
+            assert result[k], f"{k} should be non-empty"
