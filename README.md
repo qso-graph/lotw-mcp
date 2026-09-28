@@ -11,7 +11,8 @@ Part of the [qso-graph](https://qso-graph.io/) project. Read-only — uploads re
 ## Install
 
 ```bash
-pip install lotw-mcp
+uvx lotw-mcp            # run it; nothing to install
+pip install lotw-mcp    # or install it into your own environment
 ```
 
 ## Tools
@@ -32,7 +33,7 @@ pip install lotw-mcp
 lotw-mcp uses qso-graph-auth personas for credential management:
 
 ```bash
-pip install qso-graph-auth
+uv tool install qso-graph-auth
 
 qso-auth persona create ki7mt --callsign KI7MT
 qso-auth persona provider ki7mt lotw --username KI7MT
@@ -51,7 +52,8 @@ Add to `claude_desktop_config.json` (`~/Library/Application Support/Claude/` on 
 {
   "mcpServers": {
     "lotw": {
-      "command": "lotw-mcp"
+      "command": "uvx",
+      "args": ["lotw-mcp"]
     }
   }
 }
@@ -65,7 +67,8 @@ Add to `.claude/settings.json`:
 {
   "mcpServers": {
     "lotw": {
-      "command": "lotw-mcp"
+      "command": "uvx",
+      "args": ["lotw-mcp"]
     }
   }
 }
@@ -77,7 +80,8 @@ Add to `.claude/settings.json`:
 {
   "mcpServers": {
     "lotw": {
-      "command": "lotw-mcp"
+      "command": "uvx",
+      "args": ["lotw-mcp"]
     }
   }
 }
@@ -91,7 +95,8 @@ Add to `.cursor/mcp.json` (project-level) or `~/.cursor/mcp.json` (global):
 {
   "mcpServers": {
     "lotw": {
-      "command": "lotw-mcp"
+      "command": "uvx",
+      "args": ["lotw-mcp"]
     }
   }
 }
@@ -105,7 +110,8 @@ Add to `.vscode/mcp.json` in your workspace:
 {
   "servers": {
     "lotw": {
-      "command": "lotw-mcp"
+      "command": "uvx",
+      "args": ["lotw-mcp"]
     }
   }
 }
@@ -119,11 +125,14 @@ Add to `~/.gemini/settings.json` (global) or `.gemini/settings.json` (project):
 {
   "mcpServers": {
     "lotw": {
-      "command": "lotw-mcp"
+      "command": "uvx",
+      "args": ["lotw-mcp"]
     }
   }
 }
 ```
+
+Installed with pip instead? Use `"command": "lotw-mcp"` in any config above.
 
 ### 3. Ask questions
 
@@ -162,7 +171,8 @@ lotw-mcp --transport streamable-http --port 8004
 ```bash
 git clone https://github.com/qso-graph/lotw-mcp.git
 cd lotw-mcp
-pip install -e .
+uv sync --group dev
+uv run pytest
 ```
 
 ## License
