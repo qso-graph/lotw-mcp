@@ -29,15 +29,19 @@ uvx lotw-mcp            # run it; nothing to install
 
 ### 1. Set up credentials
 
-lotw-mcp uses qso-graph-auth personas for credential management:
+lotw-mcp uses [qso-graph-auth](https://qso-graph.io/servers/qso-graph-auth/) personas for credential management:
 
 ```bash
+# Install qso-graph-auth if you haven't
 uv tool install qso-graph-auth
 
-qso-auth persona create ki7mt --callsign KI7MT
-qso-auth persona provider ki7mt lotw --username KI7MT
-qso-auth persona secret ki7mt lotw
+# A persona (your callsign and the dates it covers), then LoTW for it
+qso-auth persona add --name ki7mt --callsign KI7MT --start 2020-01-01
+qso-auth provider enable ki7mt lotw
+qso-auth creds set ki7mt lotw      # asks for your username, then your password (hidden)
 ```
+
+All three steps are needed: without `provider enable`, the server reports that the persona has no `lotw` ref.
 
 **Note**: The LoTW `login` is usually your callsign but not always. Pre-Sept 2019 accounts may require lowercase passwords. Avoid special characters in passwords.
 
