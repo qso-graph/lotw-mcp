@@ -29,7 +29,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://qso-graph.io"
-Documentation = "https://qso-graph.io"
+Documentation = "https://qso-graph.io/servers/lotw/"
 Repository = "https://github.com/qso-graph/lotw-mcp"
 Issues = "https://github.com/qso-graph/lotw-mcp/issues"
 
