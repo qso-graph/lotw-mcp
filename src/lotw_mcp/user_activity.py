@@ -78,7 +78,7 @@ def _download(cache_file: Path) -> str:
     req = urllib.request.Request(_ACTIVITY_URL, method="GET")
     req.add_header("User-Agent", "lotw-mcp/0.1.0")
     with urllib.request.urlopen(req, timeout=120) as resp:
-        text = resp.read().decode("utf-8", errors="replace")
+        text: str = resp.read().decode("utf-8", errors="replace")
     cache_file.write_text(text, encoding="utf-8")
     return text
 

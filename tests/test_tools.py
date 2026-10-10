@@ -10,8 +10,6 @@ from __future__ import annotations
 
 import os
 
-import pytest
-
 os.environ["LOTW_MCP_MOCK"] = "1"
 
 from lotw_mcp.server import (
@@ -22,7 +20,6 @@ from lotw_mcp.server import (
     lotw_user_activity,
 )
 from lotw_mcp.user_activity import _load_index, check_user
-
 
 # ---------------------------------------------------------------------------
 # LOTW-L2-001..008: lotw_confirmations

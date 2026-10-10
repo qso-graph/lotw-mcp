@@ -66,7 +66,10 @@ def _get(url: str, params: dict[str, str], timeout: float = 120.0) -> str:
     req.add_header("User-Agent", "lotw-mcp/0.1.0")
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return resp.read().decode("utf-8", errors="replace")
+            # Annotated: the response object is Any to mypy, so decoding
+            # it is Any too, and this function promises a str.
+            body: str = resp.read().decode("utf-8", errors="replace")
+            return body
     except Exception:
         raise RuntimeError("LoTW request failed — check network and credentials")
 
