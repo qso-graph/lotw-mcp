@@ -5,6 +5,34 @@ All notable changes to `lotw-mcp` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- **Tool execution errors are flagged `isError`** (#23). Every tool returned `{"error": "..."}` on
+  failure, which reaches a client as a *successful* call whose payload happens to contain the word
+  "error". They now raise `ToolError`, which `fastmcp` reports as `isError: true`. **No decision
+  changed — only how it is reported.** LoTW answers a bad login with an HTML page rather than a
+  status code, and that verdict is still passed on: `Login failed` is what a model should see.
+- **Fixed: LoTW's own error page could carry the password into the message.** `_extract_error`
+  returns whatever is in the page's `<title>` or first `<b>`, and this server's requests put the
+  password in the query string — so a page echoing the request put the password in the message.
+  **Measured, not assumed:** given such a page the secret came straight through. Until now that
+  landed in a payload; since #23 it is the error text a client reads. The extracted text is now
+  withheld, with a reason, when it carries the secret or anything URL-shaped, and capped at 200
+  characters. It is deliberately *not* scrubbed and handed over: a page containing the password is
+  a surprise worth reporting as one rather than editing quietly. An ordinary `Login failed` still
+  reaches the caller, which is the point.
+- The four raises build their message in a named step first, so the `raise` interpolates only a
+  value already checked. `test_error_messages_safe` reads the raise expression and is right to —
+  a credential named inside one is worth stopping on.
+- **Every tool declares all four annotation hints** (#23). All six are read-only, non-destructive
+  and idempotent — nothing is uploaded to LoTW and no credential is ever written, only read.
+  `openWorldHint` is true for the five that reach lotw.arrl.org (four sending the operator's
+  password, one reading the public activity CSV) and false for `get_version_info`.
+- **Fixed: the `User-Agent` said `lotw-mcp/0.1.0`** in both `client.py` and `user_activity.py`
+  while the package was 0.3.8 — four releases of drift, visible to ARRL. It now reports
+  `__version__`.
+- **`tests/test_mcp_conformance.py`** asserts all of the above.
+
 ## [0.3.8] — 2026-10-11
 
 - **ruff and mypy run in CI** (qso-graph-devel#66), as a job the `ci-all-green` gate requires.

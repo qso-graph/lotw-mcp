@@ -10,6 +10,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+from . import __version__
+
 _ACTIVITY_URL = "https://lotw.arrl.org/lotw-user-activity.csv"
 _CACHE_TTL = 604800.0  # 7 days (file changes weekly)
 
@@ -76,7 +78,7 @@ def _load_index() -> dict[str, tuple[str, str]]:
 def _download(cache_file: Path) -> str:
     """Download the CSV and write to cache."""
     req = urllib.request.Request(_ACTIVITY_URL, method="GET")
-    req.add_header("User-Agent", "lotw-mcp/0.1.0")
+    req.add_header("User-Agent", f"lotw-mcp/{__version__}")
     with urllib.request.urlopen(req, timeout=120) as resp:
         text: str = resp.read().decode("utf-8", errors="replace")
     cache_file.write_text(text, encoding="utf-8")
