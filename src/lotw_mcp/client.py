@@ -11,6 +11,7 @@ from typing import Any
 
 from qso_graph_auth.identity import PersonaManager
 
+from . import __version__
 from .adif_parser import is_error_response, parse_adif
 
 _BASE = "https://lotw.arrl.org/lotwuser/lotwreport.adi"
@@ -63,7 +64,7 @@ def _get(url: str, params: dict[str, str], timeout: float = 120.0) -> str:
     qs = urllib.parse.urlencode(params)
     full_url = f"{url}?{qs}"
     req = urllib.request.Request(full_url, method="GET")
-    req.add_header("User-Agent", "lotw-mcp/0.1.0")
+    req.add_header("User-Agent", f"lotw-mcp/{__version__}")
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             # Annotated: the response object is Any to mypy, so decoding
@@ -88,6 +89,29 @@ def _record_to_dict(rec: dict[str, str]) -> dict[str, Any]:
         else:
             out[lower] = value
     return out
+
+
+def _safe_error(html: str, secret: str | None) -> str:
+    """LoTW's own message, or a fixed one when it cannot be shown safely.
+
+    ``_extract_error`` lifts text out of an HTML page this project does not
+    control, and this server's requests carry the password in the query string.
+    A page whose ``<title>`` echoes the request would therefore put the password
+    into the message — measured, not assumed: given such a page the secret came
+    straight through. Until #23 that landed in a payload; it is now the error
+    text a client reads.
+
+    So the extracted text is passed on only when it carries neither the secret
+    nor anything URL-shaped, and is capped. It is deliberately *not* scrubbed
+    and handed over: a page containing the password is a surprise worth
+    reporting as one rather than editing quietly.
+    """
+    message = _extract_error(html)
+    if secret and secret in message:
+        return "LoTW returned an error page that echoed the request; not shown"
+    if "://" in message:
+        return "LoTW returned an error page containing a URL; not shown"
+    return message[:200]
 
 
 def _extract_error(html: str) -> str:
@@ -144,7 +168,12 @@ def download_adif(
     text = _get(_BASE, params)
 
     if is_error_response(text):
-        return {"error": _extract_error(text)}
+        # Built first and raised second, so the raise interpolates only a
+        # value already checked safe to show. test_error_messages_safe
+        # reads the raise expression, and it is right to: a credential
+        # named inside one is worth stopping on.
+        message = _safe_error(text, password)
+        raise RuntimeError(f"LoTW: {message}")
 
     record_count = text.upper().count("<EOR>")
     return {"adif": text, "record_count": record_count}
@@ -200,7 +229,12 @@ def query_confirmations(
     text = _get(_BASE, params)
 
     if is_error_response(text):
-        return {"error": _extract_error(text)}
+        # Built first and raised second, so the raise interpolates only a
+        # value already checked safe to show. test_error_messages_safe
+        # reads the raise expression, and it is right to: a credential
+        # named inside one is worth stopping on.
+        message = _safe_error(text, password)
+        raise RuntimeError(f"LoTW: {message}")
 
     header, records = parse_adif(text)
     return {
@@ -255,7 +289,12 @@ def query_qsos(
     text = _get(_BASE, params)
 
     if is_error_response(text):
-        return {"error": _extract_error(text)}
+        # Built first and raised second, so the raise interpolates only a
+        # value already checked safe to show. test_error_messages_safe
+        # reads the raise expression, and it is right to: a credential
+        # named inside one is worth stopping on.
+        message = _safe_error(text, password)
+        raise RuntimeError(f"LoTW: {message}")
 
     header, records = parse_adif(text)
     return {
@@ -297,7 +336,12 @@ def query_dxcc_credits(
     text = _get(url, params)
 
     if is_error_response(text):
-        return {"error": _extract_error(text)}
+        # Built first and raised second, so the raise interpolates only a
+        # value already checked safe to show. test_error_messages_safe
+        # reads the raise expression, and it is right to: a credential
+        # named inside one is worth stopping on.
+        message = _safe_error(text, password)
+        raise RuntimeError(f"LoTW: {message}")
 
     _, records = parse_adif(text)
 

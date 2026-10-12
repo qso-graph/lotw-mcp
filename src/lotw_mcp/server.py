@@ -6,6 +6,7 @@ import sys
 from typing import Any
 
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 from qso_graph_auth.identity import PersonaManager
 
 from . import __spec_version__, __version__
@@ -30,6 +31,33 @@ def _pm() -> PersonaManager:
 # Tools
 # ---------------------------------------------------------------------------
 
+# MCP 2026-07-28 tool annotations. The defaults are pessimistic — a tool that
+# declares nothing is advertised as destructive, non-idempotent and open-world,
+# and the specification tells a client to keep a human in the loop for an
+# operation like that. Every tool here reads and none writes: nothing is
+# uploaded to LoTW and no credential is ever written, only read from the
+# keyring.
+#
+# openWorldHint is true for the five that reach lotw.arrl.org and false only
+# for get_version_info. They are a client's UX hint and never a security
+# control, so nothing here tells a client which tools send the operator's
+# password — that is not what annotations are for, and the specification
+# requires clients to treat them as untrusted.
+_READS_LOTW = {
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": True,
+}
+_ANSWERS_FROM_THE_PACKAGE = {
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": False,
+}
+
+
+
 
 def _version_info_payload() -> dict[str, Any]:
     """Build the version info envelope. Pulled into a helper so tests can
@@ -41,7 +69,7 @@ def _version_info_payload() -> dict[str, Any]:
     }
 
 
-@mcp.tool()
+@mcp.tool(annotations=_ANSWERS_FROM_THE_PACKAGE)
 def get_version_info() -> dict[str, Any]:
     """Get lotw-mcp service version and upstream LoTW schema version.
 
@@ -57,7 +85,7 @@ def get_version_info() -> dict[str, Any]:
     return _version_info_payload()
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_LOTW)
 def lotw_confirmations(
     persona: str,
     since: str | None = None,
@@ -84,10 +112,10 @@ def lotw_confirmations(
     try:
         return query_confirmations(_pm(), persona, since, band, mode, callsign, dxcc, detail)
     except Exception as e:
-        return {"error": str(e)}
+        raise ToolError(str(e)) from e
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_LOTW)
 def lotw_qsos(
     persona: str,
     since: str | None = None,
@@ -112,10 +140,10 @@ def lotw_qsos(
     try:
         return query_qsos(_pm(), persona, since, band, mode, start_date, end_date)
     except Exception as e:
-        return {"error": str(e)}
+        raise ToolError(str(e)) from e
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_LOTW)
 def lotw_dxcc_credits(
     persona: str,
     entity: int | None = None,
@@ -132,10 +160,10 @@ def lotw_dxcc_credits(
     try:
         return query_dxcc_credits(_pm(), persona, entity)
     except Exception as e:
-        return {"error": str(e)}
+        raise ToolError(str(e)) from e
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_LOTW)
 def lotw_download(
     persona: str,
     qsl_only: bool = False,
@@ -162,10 +190,10 @@ def lotw_download(
     try:
         return download_adif(_pm(), persona, qsl_only=qsl_only, since=since, band=band, mode=mode)
     except Exception as e:
-        return {"error": str(e)}
+        raise ToolError(str(e)) from e
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_LOTW)
 def lotw_user_activity(callsign: str) -> dict[str, Any]:
     """Check if a callsign uses LoTW and when they last uploaded.
 
@@ -181,7 +209,7 @@ def lotw_user_activity(callsign: str) -> dict[str, Any]:
     try:
         return check_user(callsign)
     except Exception as e:
-        return {"error": str(e)}
+        raise ToolError(str(e)) from e
 
 
 # ---------------------------------------------------------------------------
