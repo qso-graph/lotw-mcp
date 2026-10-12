@@ -137,7 +137,10 @@ class TestToolErrorsAreFlagged:
         from lotw_mcp import client
 
         monkeypatch.delenv("LOTW_MCP_MOCK", raising=False)
-        monkeypatch.setattr(client, "_get", lambda *a, **k: "<html><title>Login failed</title></html>")
+        monkeypatch.setattr(
+            client, "_get",
+            lambda *a, **k: "<html><title>Login failed</title></html>",
+        )
         monkeypatch.setattr(
             client.PersonaManager, "require",
             lambda self, persona, provider, prefer=None: ("KI7MT", "pw"),
