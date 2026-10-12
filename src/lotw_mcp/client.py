@@ -11,38 +11,11 @@ from typing import Any
 
 from qso_graph_auth.identity import PersonaManager
 
+from . import __version__, _tls
+from ._mock_adif import _MOCK_CONFIRMATIONS, _MOCK_DXCC, _MOCK_QSOS
 from .adif_parser import is_error_response, parse_adif
 
 _BASE = "https://lotw.arrl.org/lotwuser/lotwreport.adi"
-
-# Mock ADIF for testing
-_MOCK_CONFIRMATIONS = """ARRL Logbook of The World Status Report
-<PROGRAMID:4>LoTW
-<APP_LoTW_LASTQSL:19>2026-03-01 12:00:00
-<APP_LoTW_NUMREC:1>2
-<EOH>
-<CALL:5>KI7MT<BAND:3>20M<MODE:3>FT8<QSO_DATE:8>20260301<TIME_ON:6>012345<QSL_RCVD:1>Y<QSLRDATE:8>20260302<DXCC:3>291<COUNTRY:13>United States<GRIDSQUARE:6>DN13sa<CQZ:1>3<ITUZ:2>10<CREDIT_GRANTED:23>DXCC:MIXED,DXCC:DIGITAL<EOR>
-<CALL:4>W1AW<BAND:3>40M<MODE:2>CW<QSO_DATE:8>20260228<TIME_ON:6>200000<QSL_RCVD:1>Y<QSLRDATE:8>20260301<DXCC:3>291<COUNTRY:13>United States<GRIDSQUARE:6>FN31pr<CQZ:1>5<ITUZ:1>8<EOR>
-"""
-
-_MOCK_QSOS = """ARRL Logbook of The World Status Report
-<PROGRAMID:4>LoTW
-<APP_LoTW_LASTQSORX:19>2026-03-01 12:00:00
-<APP_LoTW_NUMREC:1>3
-<EOH>
-<CALL:5>KI7MT<BAND:3>20M<MODE:3>FT8<QSO_DATE:8>20260301<TIME_ON:6>012345<QSL_RCVD:1>Y<EOR>
-<CALL:4>W1AW<BAND:3>40M<MODE:2>CW<QSO_DATE:8>20260228<TIME_ON:6>200000<QSL_RCVD:1>Y<EOR>
-<CALL:5>JA1AB<BAND:3>15M<MODE:3>FT8<QSO_DATE:8>20260227<TIME_ON:6>153000<QSL_RCVD:1>N<EOR>
-"""
-
-_MOCK_DXCC = """ARRL Logbook of The World Status Report
-<PROGRAMID:4>LoTW
-<APP_LoTW_NUMREC:1>2
-<EOH>
-<CALL:5>JA1AB<QSO_DATE:8>20250915<MODE:3>FT8<BAND:3>20M<DXCC:3>339<COUNTRY:5>JAPAN<CREDIT_GRANTED:10>DXCC:MIXED<APP_LOTW_CREDIT_GRANTED:10>DXCC:MIXED<EOR>
-<CALL:5>G3ABC<QSO_DATE:8>20251001<MODE:2>CW<BAND:3>40M<DXCC:3>223<COUNTRY:7>ENGLAND<CREDIT_GRANTED:18>DXCC:MIXED,DXCC:CW<APP_LOTW_CREDIT_GRANTED:18>DXCC:MIXED,DXCC:CW<EOR>
-"""
-
 
 def _is_mock() -> bool:
     return os.getenv("LOTW_MCP_MOCK") == "1"
@@ -63,9 +36,9 @@ def _get(url: str, params: dict[str, str], timeout: float = 120.0) -> str:
     qs = urllib.parse.urlencode(params)
     full_url = f"{url}?{qs}"
     req = urllib.request.Request(full_url, method="GET")
-    req.add_header("User-Agent", "lotw-mcp/0.1.0")
+    req.add_header("User-Agent", f"lotw-mcp/{__version__}")
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout, context=_tls.context()) as resp:
             # Annotated: the response object is Any to mypy, so decoding
             # it is Any too, and this function promises a str.
             body: str = resp.read().decode("utf-8", errors="replace")
@@ -88,6 +61,29 @@ def _record_to_dict(rec: dict[str, str]) -> dict[str, Any]:
         else:
             out[lower] = value
     return out
+
+
+def _safe_error(html: str, secret: str | None) -> str:
+    """LoTW's own message, or a fixed one when it cannot be shown safely.
+
+    ``_extract_error`` lifts text out of an HTML page this project does not
+    control, and this server's requests carry the password in the query string.
+    A page whose ``<title>`` echoes the request would therefore put the password
+    into the message — measured, not assumed: given such a page the secret came
+    straight through. Until #23 that landed in a payload; it is now the error
+    text a client reads.
+
+    So the extracted text is passed on only when it carries neither the secret
+    nor anything URL-shaped, and is capped. It is deliberately *not* scrubbed
+    and handed over: a page containing the password is a surprise worth
+    reporting as one rather than editing quietly.
+    """
+    message = _extract_error(html)
+    if secret and secret in message:
+        return "LoTW returned an error page that echoed the request; not shown"
+    if "://" in message:
+        return "LoTW returned an error page containing a URL; not shown"
+    return message[:200]
 
 
 def _extract_error(html: str) -> str:
@@ -144,7 +140,12 @@ def download_adif(
     text = _get(_BASE, params)
 
     if is_error_response(text):
-        return {"error": _extract_error(text)}
+        # Built first and raised second, so the raise interpolates only a
+        # value already checked safe to show. test_error_messages_safe
+        # reads the raise expression, and it is right to: a credential
+        # named inside one is worth stopping on.
+        message = _safe_error(text, password)
+        raise RuntimeError(f"LoTW: {message}")
 
     record_count = text.upper().count("<EOR>")
     return {"adif": text, "record_count": record_count}
@@ -200,7 +201,12 @@ def query_confirmations(
     text = _get(_BASE, params)
 
     if is_error_response(text):
-        return {"error": _extract_error(text)}
+        # Built first and raised second, so the raise interpolates only a
+        # value already checked safe to show. test_error_messages_safe
+        # reads the raise expression, and it is right to: a credential
+        # named inside one is worth stopping on.
+        message = _safe_error(text, password)
+        raise RuntimeError(f"LoTW: {message}")
 
     header, records = parse_adif(text)
     return {
@@ -255,7 +261,12 @@ def query_qsos(
     text = _get(_BASE, params)
 
     if is_error_response(text):
-        return {"error": _extract_error(text)}
+        # Built first and raised second, so the raise interpolates only a
+        # value already checked safe to show. test_error_messages_safe
+        # reads the raise expression, and it is right to: a credential
+        # named inside one is worth stopping on.
+        message = _safe_error(text, password)
+        raise RuntimeError(f"LoTW: {message}")
 
     header, records = parse_adif(text)
     return {
@@ -297,7 +308,12 @@ def query_dxcc_credits(
     text = _get(url, params)
 
     if is_error_response(text):
-        return {"error": _extract_error(text)}
+        # Built first and raised second, so the raise interpolates only a
+        # value already checked safe to show. test_error_messages_safe
+        # reads the raise expression, and it is right to: a credential
+        # named inside one is worth stopping on.
+        message = _safe_error(text, password)
+        raise RuntimeError(f"LoTW: {message}")
 
     _, records = parse_adif(text)
 

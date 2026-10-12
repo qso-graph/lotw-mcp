@@ -5,6 +5,75 @@ All notable changes to `lotw-mcp` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-10-12
+
+**Upgrading:** a tool that fails now returns `isError: true` instead of a successful result whose
+payload contained an `error` key. Anything reading `result["error"]` should read the error flag.
+LoTW's own verdict is still passed on — `Login failed` is what a model should see.
+
+**Security-relevant:** LoTW's error pages are HTML ARRL controls, and this server's requests put the
+password in the query string. A page echoing the request used to carry the password into the
+message. That text is now withheld, with a reason, when it contains the secret or any URL.
+
+
+- **`E501` is adopted** (#22, qso-graph-devel#70). It reported **four lines, none of them a
+  defect**. Two reflowed.
+- The other two are **ADIF records in the sample LoTW responses**, and an ADIF record is written on
+  one line. Checked rather than asserted: this project's parser is *not* line-based, and wrapping a
+  record between fields parses identically — so the exemption is not "wrapping would break it" but
+  that a wrapped sample stops resembling what LoTW actually sends, which is the only reason those
+  samples exist. The same ground as `solar-mcp` keeping NOAA's alert text intact.
+- Those samples moved to **`_mock_adif.py`**, which carries a file-level `# ruff: noqa: E501` and
+  the reason. That confines the exemption to a file holding nothing but sample data; a
+  `per-file-ignores` entry on `client.py` would have exempted several hundred lines of real code
+  for the sake of two lines of ADIF. The move is behaviour-neutral and the suite is unchanged.
+
+- **`certifi` is carried, and both fetch paths verify against it** (#21, qso-graph-devel#73). They
+  used `urllib` with no context, so they trusted whichever root store the running Python was built
+  against. On macOS that is `/etc/ssl/cert.pem`, a deliberately *reduced* OpenSSL file — 128 roots
+  against the system keychain's 158, and current rather than stale. **lotw.arrl.org verifies fine
+  against it today**, so this was latent rather than an outage.
+- **It matters more here than in most of the fleet: the operator's LoTW password travels over these
+  connections**, in query parameters, because that is how LoTW's query interface works. Which is
+  why verification is never disabled — `ssl.CERT_NONE` would make a failing call "work" by
+  accepting any certificate from anyone, and here that means handing the password to whoever
+  presented it.
+- The context lives in its own module, `_tls.py`, because the calls are in **two** files —
+  `client.py` and `user_activity.py`. A context defined in one and imported by the other would
+  couple them for no reason, and the guard has one thing to point at.
+- **The "every `urlopen` verifies" check scans the whole package, not one file.** That is the
+  difference that matters here: a check reading only `client.py` would have missed
+  `user_activity.py` entirely — which is how a server ends up verifying on the path that carries
+  the password and not on the other one. Reverting exactly that is what the falsification drives.
+- **`tests/test_release_gate.py`** asserts the gate suite imports nothing but the standard library
+  and pytest. solar-mcp's 0.3.0 publish failed on exactly that, from the same change.
+
+- **Tool execution errors are flagged `isError`** (#23). Every tool returned `{"error": "..."}` on
+  failure, which reaches a client as a *successful* call whose payload happens to contain the word
+  "error". They now raise `ToolError`, which `fastmcp` reports as `isError: true`. **No decision
+  changed — only how it is reported.** LoTW answers a bad login with an HTML page rather than a
+  status code, and that verdict is still passed on: `Login failed` is what a model should see.
+- **Fixed: LoTW's own error page could carry the password into the message.** `_extract_error`
+  returns whatever is in the page's `<title>` or first `<b>`, and this server's requests put the
+  password in the query string — so a page echoing the request put the password in the message.
+  **Measured, not assumed:** given such a page the secret came straight through. Until now that
+  landed in a payload; since #23 it is the error text a client reads. The extracted text is now
+  withheld, with a reason, when it carries the secret or anything URL-shaped, and capped at 200
+  characters. It is deliberately *not* scrubbed and handed over: a page containing the password is
+  a surprise worth reporting as one rather than editing quietly. An ordinary `Login failed` still
+  reaches the caller, which is the point.
+- The four raises build their message in a named step first, so the `raise` interpolates only a
+  value already checked. `test_error_messages_safe` reads the raise expression and is right to —
+  a credential named inside one is worth stopping on.
+- **Every tool declares all four annotation hints** (#23). All six are read-only, non-destructive
+  and idempotent — nothing is uploaded to LoTW and no credential is ever written, only read.
+  `openWorldHint` is true for the five that reach lotw.arrl.org (four sending the operator's
+  password, one reading the public activity CSV) and false for `get_version_info`.
+- **Fixed: the `User-Agent` said `lotw-mcp/0.1.0`** in both `client.py` and `user_activity.py`
+  while the package was 0.3.8 — four releases of drift, visible to ARRL. It now reports
+  `__version__`.
+- **`tests/test_mcp_conformance.py`** asserts all of the above.
+
 ## [0.3.8] — 2026-10-11
 
 - **ruff and mypy run in CI** (qso-graph-devel#66), as a job the `ci-all-green` gate requires.
