@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **`E501` is adopted** (#22, qso-graph-devel#70). It reported **four lines, none of them a
+  defect**. Two reflowed.
+- The other two are **ADIF records in the sample LoTW responses**, and an ADIF record is written on
+  one line. Checked rather than asserted: this project's parser is *not* line-based, and wrapping a
+  record between fields parses identically — so the exemption is not "wrapping would break it" but
+  that a wrapped sample stops resembling what LoTW actually sends, which is the only reason those
+  samples exist. The same ground as `solar-mcp` keeping NOAA's alert text intact.
+- Those samples moved to **`_mock_adif.py`**, which carries a file-level `# ruff: noqa: E501` and
+  the reason. That confines the exemption to a file holding nothing but sample data; a
+  `per-file-ignores` entry on `client.py` would have exempted several hundred lines of real code
+  for the sake of two lines of ADIF. The move is behaviour-neutral and the suite is unchanged.
+
 - **`certifi` is carried, and both fetch paths verify against it** (#21, qso-graph-devel#73). They
   used `urllib` with no context, so they trusted whichever root store the running Python was built
   against. On macOS that is `/etc/ssl/cert.pem`, a deliberately *reduced* OpenSSL file — 128 roots

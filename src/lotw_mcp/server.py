@@ -188,7 +188,9 @@ def lotw_download(
         Raw ADIF text and record count.
     """
     try:
-        return download_adif(_pm(), persona, qsl_only=qsl_only, since=since, band=band, mode=mode)
+        return download_adif(
+            _pm(), persona, qsl_only=qsl_only, since=since, band=band, mode=mode,
+        )
     except Exception as e:
         raise ToolError(str(e)) from e
 
