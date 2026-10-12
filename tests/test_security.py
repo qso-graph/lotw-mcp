@@ -79,3 +79,69 @@ def test_no_eval_exec():
                 continue
             if re.search(r'\b(?:eval|exec)\s*\(', stripped):
                 assert False, f"eval/exec in {py_file.name}:{i}: {stripped.strip()}"
+
+
+def _code_only(path: Path) -> str:
+    """The file with comments and string literals removed.
+
+    Some checks must read what the code *does*, not what it says about itself.
+    `_tls.context()` carries a docstring explaining that `ssl.CERT_NONE` would
+    be the wrong fix, and a plain text search cannot tell that sentence apart
+    from the thing it warns against.
+    """
+    import tokenize
+
+    kept = []
+    with path.open("rb") as handle:
+        for token in tokenize.tokenize(handle.readline):
+            if token.type in (tokenize.COMMENT, tokenize.STRING):
+                continue
+            kept.append(token.string)
+    return " ".join(kept)
+
+
+def test_tls_verification_is_never_disabled():
+    """Guarantee #8: no context here stops checking certificates.
+
+    On this server that is not only about reaching LoTW: the operator's
+    password travels over these connections, in query parameters, because that
+    is how LoTW's query interface works. `ssl.CERT_NONE` or
+    `check_hostname = False` would make a failing call "work" by accepting any
+    certificate from anyone, which here means handing the password over.
+
+    Read off the source, like every check in this file: the release gate runs it
+    with the package *not installed*, so nothing here may import `lotw_mcp`.
+    """
+    forbidden = re.compile(r"CERT_NONE|check_hostname\s*=\s*False|_create_unverified")
+    for py_file in _py_files():
+        matches = forbidden.findall(_code_only(py_file))
+        assert not matches, f"TLS verification weakened in {py_file.name}: {matches}"
+
+
+def test_the_root_set_is_carried_not_borrowed():
+    """Guarantee #8: the roots come from certifi, not the host's OpenSSL store."""
+    assert "cafile=certifi.where()" in (SRC_DIR / "lotw_mcp" / "_tls.py").read_text()
+
+
+def test_every_outbound_call_verifies():
+    """Guarantee #8: a new fetch path cannot quietly skip the context.
+
+    Scanned across the whole package, not one file: the calls here live in two
+    modules, and a check that read only `client.py` would have missed
+    `user_activity.py` entirely — which is how a server ends up verifying on
+    the path carrying the password and not on the other one.
+
+    Line by line rather than by matching balanced parentheses: a regex for the
+    whole call ends at the first ")", which is the one inside "context()", so
+    it would read a call that passes no context as though it did.
+    """
+    calls = [(py_file.name, i, line)
+             for py_file in _py_files()
+             for i, line in enumerate(py_file.read_text().splitlines(), 1)
+             if "urllib.request.urlopen(" in line]
+    assert len(calls) >= 2, f"expected both fetch paths; found {len(calls)}"
+    for filename, number, line in calls:
+        assert "context=_tls.context()" in line, (
+            f"{filename}:{number} opens a connection without a verifying context: "
+            f"{line.strip()}"
+        )

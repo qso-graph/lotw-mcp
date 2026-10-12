@@ -11,7 +11,7 @@ from typing import Any
 
 from qso_graph_auth.identity import PersonaManager
 
-from . import __version__
+from . import __version__, _tls
 from .adif_parser import is_error_response, parse_adif
 
 _BASE = "https://lotw.arrl.org/lotwuser/lotwreport.adi"
@@ -66,7 +66,7 @@ def _get(url: str, params: dict[str, str], timeout: float = 120.0) -> str:
     req = urllib.request.Request(full_url, method="GET")
     req.add_header("User-Agent", f"lotw-mcp/{__version__}")
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout, context=_tls.context()) as resp:
             # Annotated: the response object is Any to mypy, so decoding
             # it is Any too, and this function promises a str.
             body: str = resp.read().decode("utf-8", errors="replace")
