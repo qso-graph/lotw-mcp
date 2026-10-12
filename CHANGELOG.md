@@ -5,7 +5,16 @@ All notable changes to `lotw-mcp` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] — 2026-10-12
+
+**Upgrading:** a tool that fails now returns `isError: true` instead of a successful result whose
+payload contained an `error` key. Anything reading `result["error"]` should read the error flag.
+LoTW's own verdict is still passed on — `Login failed` is what a model should see.
+
+**Security-relevant:** LoTW's error pages are HTML ARRL controls, and this server's requests put the
+password in the query string. A page echoing the request used to carry the password into the
+message. That text is now withheld, with a reason, when it contains the secret or any URL.
+
 
 - **`E501` is adopted** (#22, qso-graph-devel#70). It reported **four lines, none of them a
   defect**. Two reflowed.
