@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **`certifi` is carried, and both fetch paths verify against it** (#21, qso-graph-devel#73). They
+  used `urllib` with no context, so they trusted whichever root store the running Python was built
+  against. On macOS that is `/etc/ssl/cert.pem`, a deliberately *reduced* OpenSSL file — 128 roots
+  against the system keychain's 158, and current rather than stale. **lotw.arrl.org verifies fine
+  against it today**, so this was latent rather than an outage.
+- **It matters more here than in most of the fleet: the operator's LoTW password travels over these
+  connections**, in query parameters, because that is how LoTW's query interface works. Which is
+  why verification is never disabled — `ssl.CERT_NONE` would make a failing call "work" by
+  accepting any certificate from anyone, and here that means handing the password to whoever
+  presented it.
+- The context lives in its own module, `_tls.py`, because the calls are in **two** files —
+  `client.py` and `user_activity.py`. A context defined in one and imported by the other would
+  couple them for no reason, and the guard has one thing to point at.
+- **The "every `urlopen` verifies" check scans the whole package, not one file.** That is the
+  difference that matters here: a check reading only `client.py` would have missed
+  `user_activity.py` entirely — which is how a server ends up verifying on the path that carries
+  the password and not on the other one. Reverting exactly that is what the falsification drives.
+- **`tests/test_release_gate.py`** asserts the gate suite imports nothing but the standard library
+  and pytest. solar-mcp's 0.3.0 publish failed on exactly that, from the same change.
+
 - **Tool execution errors are flagged `isError`** (#23). Every tool returned `{"error": "..."}` on
   failure, which reaches a client as a *successful* call whose payload happens to contain the word
   "error". They now raise `ToolError`, which `fastmcp` reports as `isError: true`. **No decision

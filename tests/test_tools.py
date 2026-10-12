@@ -297,3 +297,33 @@ class TestGetVersionInfo:
         for k in ("service_name", "service_version", "spec_version"):
             assert isinstance(result[k], str), f"{k} should be str, got {type(result[k])}"
             assert result[k], f"{k} should be non-empty"
+
+
+class TestTlsAtRuntime:
+    """What the built context actually is.
+
+    `test_security.py` reads the source for this, because the release gate runs
+    that file with the package not installed. These assertions need the real
+    object, so they live here.
+    """
+
+    def test_verification_is_on(self):
+        """LOTW-L2-080: CERT_REQUIRED, and the hostname is checked.
+
+        The password is in the query string of every logged-in request, so this
+        is the assertion standing between the operator's secret and anyone who
+        can present a certificate.
+        """
+        import ssl
+
+        from lotw_mcp._tls import context
+
+        ctx = context()
+        assert ctx.verify_mode == ssl.CERT_REQUIRED
+        assert ctx.check_hostname is True
+
+    def test_the_root_store_actually_loaded(self):
+        """LOTW-L2-081: an empty store fails closed and looks like an outage."""
+        from lotw_mcp._tls import context
+
+        assert context().cert_store_stats()["x509_ca"] > 100
