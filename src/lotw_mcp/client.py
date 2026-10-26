@@ -11,7 +11,7 @@ from typing import Any
 
 from qso_graph_auth.identity import PersonaManager
 
-from . import __version__, _tls
+from . import __version__, _tls, ratelimit
 from ._mock_adif import _MOCK_CONFIRMATIONS, _MOCK_DXCC, _MOCK_QSOS
 from .adif_parser import is_error_response, parse_adif
 
@@ -37,6 +37,7 @@ def _get(url: str, params: dict[str, str], timeout: float = 120.0) -> str:
     full_url = f"{url}?{qs}"
     req = urllib.request.Request(full_url, method="GET")
     req.add_header("User-Agent", f"lotw-mcp/{__version__}")
+    ratelimit.wait()
     try:
         with urllib.request.urlopen(req, timeout=timeout, context=_tls.context()) as resp:
             # Annotated: the response object is Any to mypy, so decoding
