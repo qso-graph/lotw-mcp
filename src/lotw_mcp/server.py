@@ -219,8 +219,25 @@ def lotw_user_activity(callsign: str) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+USAGE = """\
+usage: lotw-mcp [--transport stdio|streamable-http] [--port N] [--version] [--help]
+
+An MCP server: an AI app (Claude Desktop, Claude Code, ...) starts it and talks
+to it over stdio. Run on its own it waits for that app; press Ctrl-C to stop.
+Set up a client: https://github.com/qso-graph/lotw-mcp#quick-start
+"""
+
+
 def main() -> None:
     """Run the lotw-mcp server."""
+    # Without this the script ignored both flags and bound stdio, so
+    # `--help` left a user watching a banner and a hung terminal.
+    if any(a in ("-h", "--help") for a in sys.argv[1:]):
+        print(USAGE, end="")
+        return
+    if "--version" in sys.argv[1:]:
+        print(f"lotw-mcp {__version__}")
+        return
     transport = "stdio"
     port = 8004
     for i, arg in enumerate(sys.argv[1:], 1):
