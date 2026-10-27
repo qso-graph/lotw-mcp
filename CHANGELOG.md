@@ -5,6 +5,39 @@ All notable changes to `lotw-mcp` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **A `429` from LoTW is now honoured.** LoTW asking this client to
+  stop is the most explicit form a request limit takes, and it was previously
+  ignored: the error was reported and the next tool call sent another request.
+  Now the `Retry-After` interval is read and bounded to between a minute and an
+  hour, no further call goes out until it has passed, and the tool says how long
+  to wait. It does not sleep through the wait — a tool call is synchronous and an
+  hour's sleep inside one is a hang, so it refuses quickly and says when to come
+  back. A `503` is treated as an outage unless it carries `Retry-After`, in which
+  case it is a deliberate shed and honoured the same way.
+
+
+## [Unreleased]
+
+### Changed
+
+- **Requests to ARRL Logbook of The World are now spaced.** Where a provider states a request
+  limit this server honours that limit; ARRL Logbook of The World states none, so the gap is a
+  recorded judgement rather than a published figure — 200 ms, matching what
+  `sota-mcp` and `iota-mcp` already use, with the reasoning written beside the
+  constant so it can be revisited rather than rediscovered. A volunteer or public
+  service with no stated limit still deserves restraint (KI7MT, 2026-10-11).
+
+  This is not throttling the user. It limits what this server sends to somebody
+  else's service; it does not limit the person asking. The response cache does the
+  larger share of the work by removing requests rather than delaying them, and the
+  spacing covers what a cache cannot: a model calling tools in a loop over inputs
+  that each miss.
+
+
 ## [0.5.0] — 2026-10-26
 
 ### Changed

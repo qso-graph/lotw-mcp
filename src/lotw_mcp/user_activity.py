@@ -6,11 +6,12 @@ import csv
 import io
 import os
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
 
-from . import __version__, _tls
+from . import __version__, _tls, ratelimit
 
 _ACTIVITY_URL = "https://lotw.arrl.org/lotw-user-activity.csv"
 _CACHE_TTL = 604800.0  # 7 days (file changes weekly)
@@ -79,8 +80,19 @@ def _download(cache_file: Path) -> str:
     """Download the CSV and write to cache."""
     req = urllib.request.Request(_ACTIVITY_URL, method="GET")
     req.add_header("User-Agent", f"lotw-mcp/{__version__}")
-    with urllib.request.urlopen(req, timeout=120, context=_tls.context()) as resp:
-        text: str = resp.read().decode("utf-8", errors="replace")
+    ratelimit.wait(_ACTIVITY_URL)
+    try:
+        with urllib.request.urlopen(req, timeout=120, context=_tls.context()) as resp:
+            text: str = resp.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as exc:
+        # The activity list is a plain public file, but a 429 on it is still
+        # LoTW telling this client to stop, and the block it arms is shared
+        # with client.py -- the limit is LoTW's view of us, not of one URL.
+        if exc.code == 429 or (exc.code == 503 and exc.headers.get("Retry-After")):
+            raise ratelimit.RateLimited(
+                ratelimit.block(_ACTIVITY_URL, exc.headers.get("Retry-After"))
+            ) from None
+        raise
     cache_file.write_text(text, encoding="utf-8")
     return text
 
