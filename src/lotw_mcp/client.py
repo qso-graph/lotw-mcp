@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -37,15 +38,32 @@ def _get(url: str, params: dict[str, str], timeout: float = 120.0) -> str:
     full_url = f"{url}?{qs}"
     req = urllib.request.Request(full_url, method="GET")
     req.add_header("User-Agent", f"lotw-mcp/{__version__}")
-    ratelimit.wait()
     try:
+        ratelimit.wait(full_url)
         with urllib.request.urlopen(req, timeout=timeout, context=_tls.context()) as resp:
             # Annotated: the response object is Any to mypy, so decoding
             # it is Any too, and this function promises a str.
             body: str = resp.read().decode("utf-8", errors="replace")
             return body
+    except urllib.error.HTTPError as exc:
+        # A 429 is LoTW stating its limit outright, so it is honoured. Only the
+        # status and Retry-After are read off the exception; its text and .url
+        # are not used, because this URL carries the password in its query
+        # string -- the same reason the clause below names neither. 503 counts
+        # only with Retry-After, which is a deliberate shed; a bare 503 is an
+        # outage and falls through.
+        if exc.code == 429 or (exc.code == 503 and exc.headers.get("Retry-After")):
+            raise ratelimit.RateLimited(
+                ratelimit.block(full_url, exc.headers.get("Retry-After"))
+            ) from None
+        raise RuntimeError("LoTW request failed — check network and credentials") from None
+    except ratelimit.RateLimited:
+        # Raised by ratelimit.wait() when a previous 429 is still in force. It
+        # must not be rewritten as a credentials problem by the clause below:
+        # it is the one failure here that tells the user what to do.
+        raise
     except Exception:
-        raise RuntimeError("LoTW request failed — check network and credentials")
+        raise RuntimeError("LoTW request failed — check network and credentials") from None
 
 
 def _record_to_dict(rec: dict[str, str]) -> dict[str, Any]:
