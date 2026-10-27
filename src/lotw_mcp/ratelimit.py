@@ -7,9 +7,10 @@ rather than sending them as fast as they are asked for.
 
 This is not throttling the user (KI7MT, 2026-10-11): it limits what this server
 sends to somebody else's service, and does not limit the person asking. The
-cache in client.py, holding confirmations seven days does the larger share of the
-work -- it removes requests rather than delaying them -- and this covers what the
-cache cannot: a model calling tools in a loop over inputs that each miss.
+cache in client.py, holding confirmations seven days does the larger share of
+the work -- it removes requests rather than delaying them -- and this covers
+what the cache cannot: a model calling tools in a loop over inputs that each
+miss.
 """
 
 from __future__ import annotations
@@ -41,7 +42,8 @@ _blocked_until: dict[str, float] = {}
 
 
 class RateLimited(RuntimeError):
-    """LoTW asked us to stop. The message is safe to show a user.
+    """A provider asked us to stop. The message names which one, and is
+    safe to show a user.
 
     A RuntimeError subclass so callers that already handle this client's
     failures keep working, and so FastMCP flags the tool result isError either
