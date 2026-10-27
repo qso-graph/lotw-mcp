@@ -22,12 +22,18 @@ _B = "https://lotw.arrl.org/lotw-user-activity.csv"
 
 
 @pytest.fixture(autouse=True)
-def _clean() -> None:
+def _clean():
     """This module holds process-wide state, so each test starts from none.
 
-    Without it a 429 armed by one test blocks the spacing tests, and the order
-    they run in decides whether the suite passes.
+    It also clears on the way *out*, which is not symmetry for its own sake:
+    the state outlives this file. A block armed by the last test here stayed
+    armed for every later test in the session, and CI caught exactly that --
+    test_tools.py failed with "rate limiting this client; try again in 300 s"
+    from a 429 this file had armed. It passed locally only because a cached
+    member list meant the tool never reached the limiter.
     """
+    ratelimit.clear()
+    yield
     ratelimit.clear()
 
 
