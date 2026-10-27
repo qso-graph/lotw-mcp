@@ -234,3 +234,83 @@ def test_a_500_leaks_neither_password_nor_url(monkeypatch):
     assert "SECRET" not in str(e.value)
     assert "arrl.org" not in str(e.value)
     assert not isinstance(e.value, ratelimit.RateLimited)
+
+
+# --- defects found by review, held here so they stay fixed ----------------
+
+
+def test_a_shorter_later_block_does_not_shorten_a_longer_one():
+    """A response asking for 60 s landing while a 300 s block runs must not
+    release us at 60. Two concurrent responses would otherwise hand two
+    callers different answers depending on which wrote last."""
+    ratelimit.block(_A, "300")
+    left = ratelimit.block(_A, "60")
+    assert left > 200, f"the 300 s block was cut to {left:.0f} s"
+    with pytest.raises(ratelimit.RateLimited) as e:
+        ratelimit.wait(_A)
+    assert e.value.retry_after > 200
+
+
+def test_block_returns_the_wait_actually_in_force():
+    """Not the interval just asked for -- the caller raises this number."""
+    ratelimit.block(_A, "300")
+    assert ratelimit.block(_A, "60") > 200
+    ratelimit.clear()
+    assert ratelimit.block(_A, "300") == pytest.approx(300.0, abs=1.0)
+
+
+@pytest.mark.parametrize("header", ["nan", "NaN", "inf", "-inf", "infinity"])
+def test_a_non_finite_header_still_blocks(header):
+    """nan defeats a clamp -- every comparison against it is False -- so it
+    would reach a deadline that is never in the future and leave the block off
+    altogether. The floor applies instead."""
+    assert ratelimit.retry_after(header) == ratelimit.MIN_BACKOFF
+    ratelimit.block(_A, header)
+    with pytest.raises(ratelimit.RateLimited):
+        ratelimit.wait(_A)
+
+
+def test_the_spacing_sleep_does_not_hold_the_lock():
+    """Holding it across a sleep would make one host's gap delay a request to
+    a different host, which is the whole point of keying by host."""
+    if ratelimit.host_of(_A) == ratelimit.host_of(_B):
+        pytest.skip("this server reads a single host")
+    import threading
+
+    ratelimit.wait(_A)  # so the next call to _A must wait out the gap
+    done = threading.Event()
+
+    def other_host() -> None:
+        ratelimit.wait(_B)
+        done.set()
+
+    t = threading.Thread(target=other_host)
+    waiter = threading.Thread(target=lambda: ratelimit.wait(_A))
+    waiter.start()
+    t.start()
+    assert done.wait(timeout=ratelimit.MIN_INTERVAL * 0.6), (
+        "a request to a second host was blocked by the first host's gap"
+    )
+    waiter.join(timeout=5)
+    t.join(timeout=5)
+
+
+def test_a_block_arriving_during_the_gap_is_honoured():
+    """The check must be made before the request, not before the wait. A 429
+    landing while a caller sleeps out the spacing gap has to stop it."""
+    import threading
+
+    ratelimit.wait(_A)  # the next call sleeps out the gap
+    refused: list[BaseException] = []
+
+    def caller() -> None:
+        try:
+            ratelimit.wait(_A)
+        except ratelimit.RateLimited as e:
+            refused.append(e)
+
+    t = threading.Thread(target=caller)
+    t.start()
+    ratelimit.block(_A, "300")   # arrives mid-sleep
+    t.join(timeout=5)
+    assert refused, "a request went out that a 429 had already forbidden"

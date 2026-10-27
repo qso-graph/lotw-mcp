@@ -14,6 +14,7 @@ cache cannot: a model calling tools in a loop over inputs that each miss.
 
 from __future__ import annotations
 
+import math
 import threading
 import time
 import urllib.parse
@@ -73,24 +74,31 @@ def host_of(url: str) -> str:
 def wait(url: str) -> None:
     """Block until MIN_INTERVAL has passed since the previous request to this host.
 
-    Held across threads by one lock, so concurrent tool calls queue rather than
-    each measuring their own gap and all firing at once.
-
     Raises RateLimited if this host has told us to stop and the interval it
     asked for has not passed. It does not sleep through that wait: an MCP server
     answers a synchronous tool call behind a client timeout, so waiting out an
     hour inside one is a hang rather than restraint. It refuses, and the message
     says when to come back.
+
+    The spacing sleep is taken *outside* the lock, and the loop re-reads the
+    state after it. Both matter. Holding the lock across a sleep would make one
+    host's gap delay a request to a different host, which is the whole point of
+    keying by host; and not re-reading would let a request go out that a 429
+    arriving during the sleep had just forbidden.
     """
     host = host_of(url)
-    with _lock:
-        remaining = _blocked_until.get(host, 0.0) - time.monotonic()
-        if remaining > 0:
-            raise RateLimited(remaining, host)
-        elapsed = time.monotonic() - _last.get(host, 0.0)
-        if elapsed < MIN_INTERVAL:
-            time.sleep(MIN_INTERVAL - elapsed)
-        _last[host] = time.monotonic()
+    while True:
+        with _lock:
+            now = time.monotonic()
+            remaining = _blocked_until.get(host, 0.0) - now
+            if remaining > 0:
+                raise RateLimited(remaining, host)
+            elapsed = now - _last.get(host, 0.0)
+            if elapsed >= MIN_INTERVAL:
+                _last[host] = now
+                return
+            delay = MIN_INTERVAL - elapsed
+        time.sleep(delay)
 
 
 # --- what to do when a provider says stop ---------------------------------
@@ -115,22 +123,36 @@ def retry_after(header: str | None) -> float:
         seconds = float(header) if header else 0.0
     except ValueError:
         seconds = 0.0
+    # "nan" and "inf" parse as floats, and nan defeats the clamp below: every
+    # comparison against it is False, so it would survive to be added to a
+    # deadline that is then never in the future, leaving the block off
+    # altogether. A header we cannot make sense of means the floor.
+    if not math.isfinite(seconds):
+        seconds = 0.0
     return min(max(seconds, MIN_BACKOFF), MAX_BACKOFF)
 
 
 def block(url: str, header: str | None) -> float:
     """Honour a 429: stop sending to this host for the interval it asked for.
 
-    Returns that interval, for the error the caller raises. It covers every
-    path on the host, because a limit is the provider's view of this client and
-    not of one URL -- and only that host, because it is not a view of anybody
-    else's service.
+    Returns the wait that is actually in force, for the error the caller
+    raises -- which is not always the interval just asked for. An outstanding
+    block is never shortened: a response asking for 60 s that lands while a
+    300 s block is still running must not release us at 60, and two concurrent
+    responses would otherwise hand two callers different answers depending on
+    which wrote last.
+
+    The block covers every path on the host, because a limit is the provider's
+    view of this client and not of one URL -- and only that host, because it is
+    not a view of anybody else's service.
     """
     seconds = retry_after(header)
     host = host_of(url)
     with _lock:
-        _blocked_until[host] = time.monotonic() + seconds
-    return seconds
+        now = time.monotonic()
+        deadline = max(_blocked_until.get(host, 0.0), now + seconds)
+        _blocked_until[host] = deadline
+        return deadline - now
 
 
 def clear() -> None:
