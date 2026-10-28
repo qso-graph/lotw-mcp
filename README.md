@@ -36,9 +36,9 @@ lotw-mcp uses [qso-graph-auth](https://qso-graph.io/servers/qso-graph-auth/) per
 uv tool install qso-graph-auth
 
 # A persona (your callsign and the dates it covers), then LoTW for it
-qso-auth persona add --name ki7mt --callsign KI7MT --start 2020-01-01
-qso-auth provider enable ki7mt lotw
-qso-auth creds set ki7mt lotw      # asks for your username, then your password (hidden)
+qso-graph-auth persona add --name ki7mt --callsign KI7MT --start 2020-01-01
+qso-graph-auth provider enable ki7mt lotw
+qso-graph-auth creds set ki7mt lotw      # asks for your username, then your password (hidden)
 ```
 
 All three steps are needed: without `provider enable`, the server reports that the persona has no `lotw` ref.
