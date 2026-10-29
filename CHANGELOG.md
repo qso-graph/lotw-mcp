@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   case it is a deliberate shed and honoured the same way.
 
 
-## [Unreleased]
+## [0.6.1] — 2026-10-29
 
 ### Changed
 
