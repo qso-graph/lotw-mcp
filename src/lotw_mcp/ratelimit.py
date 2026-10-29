@@ -152,9 +152,21 @@ def block(url: str, header: str | None) -> float:
     host = host_of(url)
     with _lock:
         now = time.monotonic()
-        deadline = max(_blocked_until.get(host, 0.0), now + seconds)
-        _blocked_until[host] = deadline
-        return deadline - now
+        standing = _blocked_until.get(host, 0.0)
+        asked = now + seconds
+        if asked >= standing:
+            _blocked_until[host] = asked
+            # `seconds`, not `asked - now`. The subtraction re-derives a number
+            # we already hold and loses precision doing it: (now + 300.0) - now
+            # is not 300.0 for about 4% of plausible time.monotonic() values,
+            # and the worst regime is a freshly booted machine, where monotonic
+            # is small -- which is every CI runner. It failed one job of the 39
+            # in the 2026-10-29 patch release and blocked ionis-mcp 1.6.1.
+            return seconds
+        # An earlier, longer block is still in force. This is the one path that
+        # must subtract, because the remaining wait is genuinely a difference,
+        # and no caller is promised an exact figure for it.
+        return standing - now
 
 
 def clear() -> None:
