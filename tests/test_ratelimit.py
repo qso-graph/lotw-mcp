@@ -265,6 +265,25 @@ def test_block_returns_the_wait_actually_in_force():
     assert ratelimit.block(_A, "300") == pytest.approx(300.0, abs=1.0)
 
 
+def test_a_fresh_block_returns_exactly_the_interval_asked_for(monkeypatch):
+    """Not approximately. The old code returned (now + seconds) - now.
+
+    That is not `seconds` for about 4% of plausible time.monotonic() values,
+    worst on a freshly booted machine where monotonic is small -- so every CI
+    runner sat in the bad regime. The value below is one that reproduces it,
+    and this test fails on the old arithmetic.
+
+    Nothing a user sees depended on it: RateLimited rounds. A release did --
+    the assertion in the test above is an equality, and it failed one job in
+    39 on 2026-10-29, which blocked ionis-mcp 1.6.1.
+    """
+    monkeypatch.setattr(ratelimit.time, "monotonic", lambda: 32740.663002569057)
+    assert (32740.663002569057 + 300.0) - 32740.663002569057 != 300.0, (
+        "this monotonic value no longer reproduces the rounding; pick another"
+    )
+    assert ratelimit.block(_A, "300") == 300.0
+
+
 @pytest.mark.parametrize("header", ["nan", "NaN", "inf", "-inf", "infinity"])
 def test_a_non_finite_header_still_blocks(header):
     """nan defeats a clamp -- every comparison against it is False -- so it
