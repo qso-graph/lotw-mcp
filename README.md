@@ -4,9 +4,9 @@
 [![PyPI](https://img.shields.io/pypi/v/lotw-mcp?label=PyPI&color=blue)](https://pypi.org/project/lotw-mcp/)
 [![MCP Registry](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.modelcontextprotocol.io%2Fv0%2Fservers%3Fsearch%3Dio.github.qso-graph%2Flotw-mcp%26version%3Dlatest&query=%24.servers%5B0%5D.server.version&label=MCP%20Registry&color=blue)](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.qso-graph/lotw-mcp&version=latest)
 
-MCP server for [ARRL Logbook of The World](https://lotw.arrl.org/) (LoTW) — query confirmations, uploaded QSOs, DXCC credits, and user activity through any MCP-compatible AI assistant.
+MCP server for [ARRL Logbook of The World](https://lotw.arrl.org/) (LoTW)—query confirmations, uploaded QSOs, DXCC credits, and user activity through any MCP-compatible AI assistant.
 
-Part of the [qso-graph](https://qso-graph.io/) project. Read-only — uploads require TQSL digital signatures and are out of scope.
+Part of the [qso-graph](https://qso-graph.io/) project. Read-only—uploads require TQSL digital signatures and are out of scope.
 
 ## Install
 
@@ -159,7 +159,7 @@ LOTW_MCP_MOCK=1 lotw-mcp
 
 ## Performance Notes
 
-LoTW can be slow (30-60s for large queries). lotw-mcp uses 120s timeouts. Use date filters (`since`, `start_date`) to limit result sets.
+LoTW can be slow (30-60 s for large queries). lotw-mcp uses 120 s timeouts. Use date filters (`since`, `start_date`) to limit result sets.
 
 ## MCP Inspector
 
