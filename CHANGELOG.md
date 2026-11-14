@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-
+- The ADI reader's description names ADIF 3.1.8 (released 2026-10-12), whose ADI rules are
+  unchanged from 3.1.7.
 - AGENTS.md and CLAUDE.md: the organization's shared agent guide, and this repository's own.
 - README: style fixes for the QSO Graph style guide (Google Developer Documentation Style Guide, American English).
 
