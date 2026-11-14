@@ -1,6 +1,6 @@
 """ADIF response parsing for LoTW API responses, on qso_graph_lib.adif.
 
-The ADI itself is read by qso_graph_lib.adif, the fleet's one reader, as ADIF 3.1.7
+The ADI itself is read by qso_graph_lib.adif, the fleet's one reader, as ADIF 3.1.8
 defines it (and passing ADIF's own test files). This module had its own scanner,
 which took exactly the declared length, so a length that ran past the next tag
 swallowed it, ``<EOR>`` included, and ran two QSOs together.
